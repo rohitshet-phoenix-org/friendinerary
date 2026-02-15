@@ -8,7 +8,20 @@ export default async function Home() {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies }
+    { cookies: {
+        getAll() {
+          return cookieStore.getAll(); // Uses native getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options); // Sets cookies individually
+            });
+          } catch {
+            // Error handling for setting cookies in Server Components
+          }
+        },
+      }
   );
   const { data: { session } } = await supabase.auth.getSession();
 
