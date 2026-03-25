@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+build
+.next
+.turbo
+out
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Prisma
+packages/db/generated
+
+# Test coverage
+coverage
+
+# React Native
+apps/mobile/.expo
+apps/mobile/android/build
+apps/mobile/ios/build
+apps/mobile/android/.gradle
+
+# Uploads
+uploads

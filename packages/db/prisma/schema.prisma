@@ -1,0 +1,590 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FRIENDINERARY — Complete Prisma Schema
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum AuthProvider {
+  email
+  google
+  facebook
+}
+
+enum SubscriptionTier {
+  free
+  pro
+}
+
+enum OnboardingStatus {
+  basic
+  proficient
+  allstar
+}
+
+enum TripPrivacy {
+  public
+  friends
+  private
+}
+
+enum TripStatus {
+  planning
+  active
+  completed
+}
+
+enum SectionType {
+  day
+  list
+  ideas
+  checklist
+}
+
+enum TransportMode {
+  driving
+  walking
+  transit
+  cycling
+  flying
+}
+
+enum PlaceCategory {
+  restaurant
+  cafe
+  bar
+  hotel
+  attraction
+  museum
+  park
+  shopping
+  transport
+  airport
+  activity
+  beach
+  nightlife
+  spa
+  other
+}
+
+enum ReservationType {
+  flight
+  hotel
+  rental_car
+  activity
+}
+
+enum ReservationSource {
+  email_forward
+  gmail_scan
+  manual
+}
+
+enum ReservationStatus {
+  confirmed
+  cancelled
+  pending
+}
+
+enum ExpenseCategory {
+  flights
+  accommodation
+  food
+  activities
+  transport
+  shopping
+  other
+}
+
+enum CollaboratorPermission {
+  view
+  edit
+}
+
+enum VoteType {
+  up
+  down
+}
+
+enum SubscriptionInterval {
+  monthly
+  annual
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
+  past_due
+  trialing
+}
+
+// ─── USER ────────────────────────────────────────────────────────────────────
+
+model User {
+  id                        String           @id @default(cuid())
+  email                     String           @unique
+  passwordHash              String?
+  displayName               String
+  profilePhoto              String?
+  authProvider              AuthProvider     @default(email)
+  googleId                  String?          @unique
+  facebookId                String?          @unique
+  subscriptionTier          SubscriptionTier @default(free)
+  subscriptionExpiry        DateTime?
+  onboardingStatus          OnboardingStatus @default(basic)
+  onboardingStepsCompleted  String[]         @default([])
+  linkedGmailEmail          String?
+  gmailAccessToken          String?
+  gmailRefreshToken         String?
+  emailVerified             Boolean          @default(false)
+  emailVerificationToken    String?
+  passwordResetToken        String?
+  passwordResetExpiry       DateTime?
+  flightDealAlerts          Boolean          @default(false)
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  // Relations
+  ownedTrips        Trip[]           @relation("TripOwner")
+  collaborations    TripCollaborator[]
+  expenses          Expense[]        @relation("ExpensePayer")
+  expenseSplits     ExpenseSplit[]
+  chatThreads       ChatThread[]
+  votes             PlaceVote[]
+  stories           TripStory[]
+  visitedPlaces     VisitedPlace[]
+  following         UserFollow[]     @relation("Follower")
+  followers         UserFollow[]     @relation("Following")
+  subscription      Subscription?
+  refreshTokens     RefreshToken[]
+  addedPlaceItems   PlaceItem[]      @relation("PlaceItemAdder")
+  attachments       Attachment[]
+
+  @@map("users")
+}
+
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User @relation("Follower",  fields: [followerId],  references: [id], onDelete: Cascade)
+  following   User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("user_follows")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ─── SUBSCRIPTION ────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                   String               @id @default(cuid())
+  userId               String               @unique
+  stripeCustomerId     String               @unique
+  stripeSubscriptionId String               @unique
+  tier                 SubscriptionTier     @default(pro)
+  interval             SubscriptionInterval
+  status               SubscriptionStatus   @default(active)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean              @default(false)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// ─── TRIP ─────────────────────────────────────────────────────────────────────
+
+model Trip {
+  id             String      @id @default(cuid())
+  slug           String      @unique
+  name           String
+  coverPhotoUrl  String?
+  ownerId        String
+  destinations   String[]
+  startDate      DateTime?
+  endDate        DateTime?
+  privacyLevel   TripPrivacy @default(private)
+  status         TripStatus  @default(planning)
+  inboundEmail   String?     @unique
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  owner         User               @relation("TripOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sections      Section[]
+  collaborators TripCollaborator[]
+  reservations  Reservation[]
+  expenses      Expense[]
+  budget        Budget?
+  attachments   Attachment[]
+  chatThreads   ChatThread[]
+  stories       TripStory[]
+  shareLinks    ShareLink[]
+
+  @@index([ownerId])
+  @@index([slug])
+  @@map("trips")
+}
+
+model TripCollaborator {
+  id         String                 @id @default(cuid())
+  tripId     String
+  userId     String
+  permission CollaboratorPermission @default(view)
+  joinedAt   DateTime               @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@map("trip_collaborators")
+}
+
+model ShareLink {
+  id         String                 @id @default(cuid())
+  tripId     String
+  token      String                 @unique
+  permission CollaboratorPermission @default(view)
+  expiresAt  DateTime?
+  createdAt  DateTime               @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("share_links")
+}
+
+// ─── SECTION & PLACE ITEM ────────────────────────────────────────────────────
+
+model Section {
+  id          String      @id @default(cuid())
+  tripId      String
+  type        SectionType @default(list)
+  name        String
+  date        DateTime?
+  color       String      @default("#F97316")
+  icon        String?
+  order       Int         @default(0)
+  isCollapsed Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  trip       Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  placeItems PlaceItem[]
+
+  @@index([tripId, order])
+  @@map("sections")
+}
+
+model PlaceItem {
+  id             String         @id @default(cuid())
+  sectionId      String
+  tripId         String
+  placeId        String
+  order          Int            @default(0)
+  startTime      String?
+  endTime        String?
+  notes          String         @default("")
+  transportMode  TransportMode?
+  durationMins   Int?
+  distanceKm     Float?
+  isChecked      Boolean        @default(false)
+  addedByUserId  String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  section      Section     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  place        Place       @relation(fields: [placeId], references: [id])
+  addedBy      User        @relation("PlaceItemAdder", fields: [addedByUserId], references: [id])
+  votes        PlaceVote[]
+
+  @@index([sectionId, order])
+  @@map("place_items")
+}
+
+model PlaceVote {
+  id          String    @id @default(cuid())
+  placeItemId String
+  userId      String
+  vote        VoteType
+  createdAt   DateTime  @default(now())
+
+  placeItem PlaceItem @relation(fields: [placeItemId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([placeItemId, userId])
+  @@map("place_votes")
+}
+
+// ─── PLACE ───────────────────────────────────────────────────────────────────
+
+model Place {
+  id                     String        @id @default(cuid())
+  googlePlaceId          String?       @unique
+  name                   String
+  address                String
+  lat                    Float
+  lng                    Float
+  category               PlaceCategory @default(other)
+  photoUrls              String[]      @default([])
+  rating                 Float?
+  reviewCount            Int?
+  openingHoursJson       Json?
+  phoneNumber            String?
+  website                String?
+  description            String?
+  avgTimeSpentMinutes    Int?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  placeItems    PlaceItem[]
+  visitedBy     VisitedPlace[]
+
+  @@index([googlePlaceId])
+  @@map("places")
+}
+
+model VisitedPlace {
+  id        String   @id @default(cuid())
+  userId    String
+  placeId   String
+  visitedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, placeId])
+  @@map("visited_places")
+}
+
+// ─── RESERVATION ─────────────────────────────────────────────────────────────
+
+model Reservation {
+  id             String            @id @default(cuid())
+  tripId         String
+  type           ReservationType
+  source         ReservationSource @default(manual)
+  rawEmailId     String?
+  linkedPlaceId  String?
+  detailsJson    Json
+  status         ReservationStatus @default(confirmed)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@map("reservations")
+}
+
+// ─── EXPENSE & BUDGET ────────────────────────────────────────────────────────
+
+model Expense {
+  id                   String          @id @default(cuid())
+  tripId               String
+  amount               Float
+  currency             String          @default("USD")
+  amountInHomeCurrency Float
+  homeCurrency         String          @default("USD")
+  category             ExpenseCategory @default(other)
+  description          String
+  date                 DateTime
+  paidByUserId         String
+  linkedPlaceId        String?
+  receiptUrl           String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  trip        Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  paidBy      User          @relation("ExpensePayer", fields: [paidByUserId], references: [id])
+  splits      ExpenseSplit[]
+
+  @@index([tripId])
+  @@map("expenses")
+}
+
+model ExpenseSplit {
+  id        String   @id @default(cuid())
+  expenseId String
+  userId    String
+  share     Float
+  settled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, userId])
+  @@map("expense_splits")
+}
+
+model Budget {
+  id                  String   @id @default(cuid())
+  tripId              String   @unique
+  totalBudget         Float
+  currency            String   @default("USD")
+  categoryBudgetsJson Json     @default("{}")
+  updatedAt           DateTime @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("budgets")
+}
+
+// ─── ATTACHMENT ──────────────────────────────────────────────────────────────
+
+model Attachment {
+  id                  String   @id @default(cuid())
+  tripId              String
+  filename            String
+  fileUrl             String
+  mimeType            String
+  sizeBytes           Int
+  linkedReservationId String?
+  linkedPlaceIds      String[] @default([])
+  uploadedByUserId    String
+  createdAt           DateTime @default(now())
+
+  trip       Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedByUserId], references: [id])
+
+  @@map("attachments")
+}
+
+// ─── GUIDE / EXPLORE ─────────────────────────────────────────────────────────
+
+model Guide {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  destination     String
+  authorId        String?
+  authorName      String
+  coverPhotoUrl   String?
+  placesJson      Json     @default("[]")
+  categories      String[] @default([])
+  viewCount       Int      @default(0)
+  likeCount       Int      @default(0)
+  isUserGenerated Boolean  @default(false)
+  sourceName      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([destination])
+  @@map("guides")
+}
+
+// ─── AI CHAT ─────────────────────────────────────────────────────────────────
+
+model ChatThread {
+  id        String      @id @default(cuid())
+  tripId    String
+  userId    String
+  title     String      @default("New conversation")
+  messages  ChatMessage[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("chat_threads")
+}
+
+model ChatMessage {
+  id               String   @id @default(cuid())
+  threadId         String
+  role             String
+  content          String
+  suggestedPlaces  Json     @default("[]")
+  timestamp        DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+// ─── TRIP STORY (JOURNAL) ─────────────────────────────────────────────────────
+
+model TripStory {
+  id             String   @id @default(cuid())
+  tripId         String
+  authorId       String
+  title          String
+  summary        String?
+  content        String   @default("")
+  coverPhotoUrl  String?
+  photosJson     Json     @default("[]")
+  stopsJson      Json     @default("[]")
+  shareSlug      String   @unique
+  publishedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  trip   Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("trip_stories")
+}
+
+// ─── HOTEL PRICE ALERTS ──────────────────────────────────────────────────────
+
+model HotelPriceAlert {
+  id           String   @id @default(cuid())
+  userId       String
+  tripId       String
+  hotelId      String
+  hotelName    String
+  checkIn      DateTime
+  checkOut     DateTime
+  targetPrice  Float
+  currency     String   @default("USD")
+  bookingUrl   String
+  isActive     Boolean  @default(true)
+  lastChecked  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("hotel_price_alerts")
+}
+
+// ─── PINBOARD ────────────────────────────────────────────────────────────────
+
+model PinboardEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  countryCode String
+  cityName    String?
+  lat         Float?
+  lng         Float?
+  visitedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, countryCode, cityName])
+  @@map("pinboard_entries")
+}

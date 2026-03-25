@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Friendinerary — Save to Trip",
+  "version": "1.0.0",
+  "description": "Save places from any website to your Friendinerary trip itinerary",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://api.friendinerary.com/*",
+    "http://localhost:4000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "Save to Friendinerary"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.google.com/maps/*",
+        "*://*.tripadvisor.com/*",
+        "*://*.yelp.com/*",
+        "*://*.booking.com/*",
+        "*://*.airbnb.com/*",
+        "*://*.expedia.com/*",
+        "*://maps.app.goo.gl/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

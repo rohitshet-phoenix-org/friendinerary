@@ -1,0 +1,30 @@
+{
+  "name": "@friendinerary/workers",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@friendinerary/db": "workspace:*",
+    "@friendinerary/types": "workspace:*",
+    "ioredis": "^5.3.2",
+    "bullmq": "^5.7.8",
+    "nodemailer": "^6.9.13",
+    "openai": "^4.47.1",
+    "dotenv": "^16.4.5",
+    "winston": "^3.13.0",
+    "axios": "^1.6.8",
+    "date-fns": "^3.6.0"
+  },
+  "devDependencies": {
+    "@friendinerary/config": "workspace:*",
+    "@types/nodemailer": "^6.4.15",
+    "@types/node": "^20.12.12",
+    "tsx": "^4.10.5",
+    "typescript": "^5.4.5"
+  }
+}
