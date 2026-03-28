@@ -21,10 +21,10 @@ interface OptimizeResult {
 }
 
 const RouteOptimizerPanel = observer(({ section, tripId }: { section: Section; tripId: string }) => {
-  const { auth, trips } = useStore();
+  const { auth, trips, settings } = useStore();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<OptimizeResult | null>(null);
-  const [travelMode, setTravelMode] = useState<"driving" | "walking" | "transit" | "bicycling">("driving");
+  const [travelMode, setTravelMode] = useState<"driving" | "walking" | "transit" | "bicycling">(settings.defaultTransportMode);
 
   const places = section.placeItems.filter((p) => {
     const coords = p.place?.coordinates as { lat?: number; lng?: number } | null | undefined;

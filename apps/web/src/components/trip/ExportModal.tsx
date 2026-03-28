@@ -2,8 +2,8 @@ import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import { X, Download, FileText, Printer, Mail, Check } from "lucide-react";
 import type { Trip } from "@friendinerary/types";
-import { format } from "date-fns";
 import toast from "react-hot-toast";
+import { useStore } from "../../stores/RootStore";
 
 interface ExportModalProps {
   trip: Trip;
@@ -11,6 +11,7 @@ interface ExportModalProps {
 }
 
 const ExportModal = observer(({ trip, onClose }: ExportModalProps) => {
+  const { settings } = useStore();
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
 
@@ -23,7 +24,7 @@ const ExportModal = observer(({ trip, onClose }: ExportModalProps) => {
     try {
       const lines: string[] = [
         `🗺️ ${trip.name}`,
-        `📅 ${trip.startDate ? format(new Date(trip.startDate), "MMM d") : "TBD"} – ${trip.endDate ? format(new Date(trip.endDate), "MMM d, yyyy") : "TBD"}`,
+        `📅 ${trip.startDate ? settings.formatShortDate(trip.startDate) : "TBD"} – ${trip.endDate ? settings.formatDate(trip.endDate) : "TBD"}`,
         `📍 ${trip.destinations.join(", ") || "No destinations"}`,
         "",
         "=".repeat(50),
@@ -31,12 +32,12 @@ const ExportModal = observer(({ trip, onClose }: ExportModalProps) => {
       ];
 
       for (const section of trip.sections) {
-        lines.push(`📌 ${section.name}${section.date ? ` (${format(new Date(section.date), "EEE, MMM d")})` : ""}`);
+        lines.push(`📌 ${section.name}${section.date ? ` (${settings.formatShortDate(section.date)})` : ""}`);
         lines.push("-".repeat(30));
         for (const [i, item] of section.placeItems.entries()) {
           lines.push(`  ${i + 1}. ${item.place.name}`);
           if (item.place.address) lines.push(`     📍 ${item.place.address}`);
-          if (item.startTime) lines.push(`     🕐 ${item.startTime}`);
+          if (item.startTime) lines.push(`     🕐 ${settings.formatTime(item.startTime)}`);
           if (item.notes) lines.push(`     💬 ${item.notes}`);
         }
         lines.push("");

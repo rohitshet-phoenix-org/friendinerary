@@ -1,6 +1,10 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
+function getOpenAI() {
+  const key = process.env["OPENAI_API_KEY"];
+  if (!key) throw new Error("OPENAI_API_KEY is not configured");
+  return new OpenAI({ apiKey: key });
+}
 
 interface ParsedReservation {
   type: "flight" | "hotel" | "rental_car" | "activity";
@@ -12,7 +16,7 @@ export async function parseEmailReservation(
   _emailHtml?: string
 ): Promise<ParsedReservation | null> {
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: process.env["OPENAI_MODEL"] ?? "gpt-4o",
       messages: [
         {

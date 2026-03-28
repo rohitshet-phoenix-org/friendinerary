@@ -7,11 +7,10 @@ import {
   Hotel, Search, Star, MapPin, Calendar, Loader2, Bell, Lock, ExternalLink
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { format } from "date-fns";
 import type { Trip } from "@friendinerary/types";
 
 const HotelSearchPanel = observer(({ trip }: { trip: Trip }) => {
-  const { auth } = useStore();
+  const { auth, settings } = useStore();
   const [destination, setDestination] = useState(trip.destinations[0]?.split(",")[0] ?? "");
   const [checkIn, setCheckIn] = useState(trip.startDate ? trip.startDate.split("T")[0] : "");
   const [checkOut, setCheckOut] = useState(trip.endDate ? trip.endDate.split("T")[0] : "");
@@ -48,7 +47,7 @@ const HotelSearchPanel = observer(({ trip }: { trip: Trip }) => {
         checkIn,
         checkOut,
         targetPrice,
-        currency: "USD",
+        currency: settings.currency,
       });
       toast.success("Price alert set! We'll notify you when the price drops.");
     } catch {
@@ -143,6 +142,7 @@ const HotelSearchPanel = observer(({ trip }: { trip: Trip }) => {
               hotel={hotel}
               isPro={auth.isPro}
               onSetAlert={() => handleSetPriceAlert(hotel.id, hotel.pricePerNight * 0.9)}
+              formatCurrency={settings.formatCurrency.bind(settings)}
             />
           ))}
         </div>
@@ -162,11 +162,12 @@ const HotelSearchPanel = observer(({ trip }: { trip: Trip }) => {
 });
 
 function HotelCard({
-  hotel, isPro, onSetAlert
+  hotel, isPro, onSetAlert, formatCurrency
 }: {
   hotel: HotelSearchResult;
   isPro: boolean;
   onSetAlert: () => void;
+  formatCurrency: (amount: number) => string;
 }) {
   return (
     <div className="card overflow-hidden flex">
@@ -199,7 +200,7 @@ function HotelCard({
 
           <div className="text-right flex-shrink-0">
             <p className="text-lg font-bold text-brand-600 dark:text-brand-400">
-              ${hotel.pricePerNight}
+              {formatCurrency(hotel.pricePerNight)}
             </p>
             <p className="text-xs text-gray-400">/ night</p>
           </div>

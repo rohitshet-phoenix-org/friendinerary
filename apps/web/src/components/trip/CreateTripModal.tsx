@@ -6,7 +6,7 @@ import { X, MapPin, Calendar, Globe } from "lucide-react";
 import toast from "react-hot-toast";
 
 const CreateTripModal = observer(() => {
-  const { trips, ui } = useStore();
+  const { trips, ui, settings } = useStore();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
@@ -23,7 +23,8 @@ const CreateTripModal = observer(() => {
         name: name.trim(),
         destinations: destination.trim() ? [destination.trim()] : [],
         ...(withDates && startDate && endDate && { startDate, endDate }),
-      });
+        visibility: settings.defaultTripVisibility,
+      } as never);
       ui.closeCreateTripModal();
       toast.success("Trip created!");
       navigate(`/trip/${trip.id}`);

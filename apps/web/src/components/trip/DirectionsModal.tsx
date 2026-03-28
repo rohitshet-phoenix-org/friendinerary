@@ -2,6 +2,7 @@ import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import { X, Navigation, Car, Footprints, Train, Bike, ChevronRight, Loader2 } from "lucide-react";
 import { api } from "../../lib/api";
+import { useStore } from "../../stores/RootStore";
 import toast from "react-hot-toast";
 import type { PlaceItem } from "@friendinerary/types";
 
@@ -26,9 +27,10 @@ const TRAVEL_MODES = [
 ] as const;
 
 const DirectionsModal = observer(({ tripId, placeItems, onClose }: DirectionsModalProps) => {
+  const { settings } = useStore();
   const [originId, setOriginId] = useState(placeItems[0]?.id ?? "");
   const [destId, setDestId] = useState(placeItems[1]?.id ?? "");
-  const [travelMode, setTravelMode] = useState<"driving" | "walking" | "transit" | "bicycling">("driving");
+  const [travelMode, setTravelMode] = useState<"driving" | "walking" | "transit" | "bicycling">(settings.defaultTransportMode);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeRouteIdx, setActiveRouteIdx] = useState(0);

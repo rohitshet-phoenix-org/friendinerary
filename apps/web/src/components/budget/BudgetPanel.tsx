@@ -11,9 +11,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const BudgetPanel = observer(({ tripId }: { tripId: string }) => {
-  const { budget: store, ui } = useStore();
+  const { budget: store, ui, settings } = useStore();
   const [showAddExpense, setShowAddExpense] = useState(false);
-  const [newExpense, setNewExpense] = useState({ description: "", amount: "", currency: "USD", category: "food", date: new Date().toISOString().slice(0, 10) });
+  const [newExpense, setNewExpense] = useState({ description: "", amount: "", currency: settings.currency, category: "food", date: new Date().toISOString().slice(0, 10) });
 
   const chartData = Object.entries(store.categoryTotals).map(([name, value]) => ({ name, value }));
 
@@ -27,7 +27,7 @@ const BudgetPanel = observer(({ tripId }: { tripId: string }) => {
         splitBetween: [],
         date: newExpense.date,
       } as never);
-      setNewExpense({ description: "", amount: "", currency: "USD", category: "food", date: new Date().toISOString().slice(0, 10) });
+      setNewExpense({ description: "", amount: "", currency: settings.currency, category: "food", date: new Date().toISOString().slice(0, 10) });
       setShowAddExpense(false);
       toast.success("Expense added");
     } catch {
@@ -41,18 +41,18 @@ const BudgetPanel = observer(({ tripId }: { tripId: string }) => {
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4 text-center">
           <Target className="w-5 h-5 text-gray-400 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-900">{store.budget ? `$${store.budget.totalBudget.toLocaleString()}` : "—"}</p>
+          <p className="text-2xl font-bold text-gray-900">{store.budget ? settings.formatCurrency(store.budget.totalBudget) : "—"}</p>
           <p className="text-xs text-gray-400">Budget</p>
         </div>
         <div className="card p-4 text-center">
           <TrendingUp className="w-5 h-5 text-red-400 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-red-500">${store.totalSpent.toFixed(0)}</p>
+          <p className="text-2xl font-bold text-red-500">{settings.formatCurrency(store.totalSpent)}</p>
           <p className="text-xs text-gray-400">Spent</p>
         </div>
         <div className="card p-4 text-center">
           <DollarSign className="w-5 h-5 text-green-400 mx-auto mb-1" />
           <p className={`text-2xl font-bold ${store.remaining != null && store.remaining < 0 ? "text-red-500" : "text-green-500"}`}>
-            {store.remaining != null ? `$${store.remaining.toFixed(0)}` : "—"}
+            {store.remaining != null ? settings.formatCurrency(store.remaining) : "—"}
           </p>
           <p className="text-xs text-gray-400">Remaining</p>
         </div>
@@ -70,7 +70,7 @@ const BudgetPanel = observer(({ tripId }: { tripId: string }) => {
                     <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name] ?? "#9CA3AF"} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(val: number) => `$${val.toFixed(2)}`} />
+                <Tooltip formatter={(val: number) => settings.formatCurrency(val)} />
               </PieChart>
             </ResponsiveContainer>
             <div className="space-y-1.5">
@@ -78,7 +78,7 @@ const BudgetPanel = observer(({ tripId }: { tripId: string }) => {
                 <div key={entry.name} className="flex items-center gap-2 text-sm">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[entry.name] ?? "#9CA3AF" }} />
                   <span className="capitalize text-gray-600">{entry.name}</span>
-                  <span className="ml-auto font-medium text-gray-900">${entry.value.toFixed(0)}</span>
+                  <span className="ml-auto font-medium text-gray-900">{settings.formatCurrency(entry.value)}</span>
                 </div>
               ))}
             </div>
@@ -123,7 +123,7 @@ const BudgetPanel = observer(({ tripId }: { tripId: string }) => {
               <p className="text-sm font-medium text-gray-900 truncate">{e.description}</p>
               <p className="text-xs text-gray-400">{e.date?.toString().slice(0, 10)} · {e.category}</p>
             </div>
-            <span className="font-semibold text-gray-900">${e.amount.toFixed(2)}</span>
+            <span className="font-semibold text-gray-900">{settings.formatCurrency(e.amount)}</span>
           </div>
         ))}
       </div>

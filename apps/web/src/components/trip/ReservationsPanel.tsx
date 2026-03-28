@@ -8,7 +8,6 @@ import {
   Calendar, Clock, MapPin, ChevronDown, ChevronUp, Loader2
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { format } from "date-fns";
 
 const RESERVATION_ICONS: Record<string, React.ReactNode> = {
   flight: <Plane className="w-4 h-4" />,
@@ -18,7 +17,7 @@ const RESERVATION_ICONS: Record<string, React.ReactNode> = {
 };
 
 const ReservationsPanel = observer(({ tripId }: { tripId: string }) => {
-  const { auth } = useStore();
+  const { auth, settings } = useStore();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [parsing, setParsing] = useState(false);
@@ -137,6 +136,8 @@ const ReservationsPanel = observer(({ tripId }: { tripId: string }) => {
               expanded={expandedId === res.id}
               onToggle={() => setExpandedId(expandedId === res.id ? null : res.id)}
               onDelete={() => handleDelete(res.id)}
+              formatDate={settings.formatDate.bind(settings)}
+              formatShortDate={settings.formatShortDate.bind(settings)}
             />
           ))}
         </div>
@@ -146,12 +147,14 @@ const ReservationsPanel = observer(({ tripId }: { tripId: string }) => {
 });
 
 function ReservationCard({
-  reservation, expanded, onToggle, onDelete
+  reservation, expanded, onToggle, onDelete, formatDate, formatShortDate
 }: {
   reservation: Reservation;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  formatDate: (date: Date | string) => string;
+  formatShortDate: (date: Date | string) => string;
 }) {
   const typeColors: Record<string, string> = {
     flight: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
@@ -187,7 +190,7 @@ function ReservationCard({
         <div className="flex items-center gap-2 flex-shrink-0">
           {reservation.startDate && (
             <span className="text-xs text-gray-400">
-              {format(new Date(reservation.startDate), "MMM d")}
+              {formatShortDate(reservation.startDate)}
             </span>
           )}
           {expanded ? (
@@ -204,13 +207,13 @@ function ReservationCard({
             {reservation.startDate && (
               <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                 <Calendar className="w-3.5 h-3.5" />
-                <span>{format(new Date(reservation.startDate), "MMM d, yyyy")}</span>
+                <span>{formatDate(reservation.startDate)}</span>
               </div>
             )}
             {reservation.endDate && (
               <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                 <Calendar className="w-3.5 h-3.5" />
-                <span>Until {format(new Date(reservation.endDate), "MMM d, yyyy")}</span>
+                <span>Until {formatDate(reservation.endDate)}</span>
               </div>
             )}
             {(reservation as { location?: string }).location && (

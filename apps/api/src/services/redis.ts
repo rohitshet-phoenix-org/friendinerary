@@ -1,39 +1,50 @@
 import Redis from "ioredis";
 import { logger } from "../utils/logger";
 
-let redis: Redis;
+let redis: Redis | null = null;
 
 export async function connectRedis(): Promise<void> {
-  redis = new Redis(process.env["REDIS_URL"] ?? "redis://localhost:6379", {
-    maxRetriesPerRequest: 3,
-    lazyConnect: true,
-  });
+  try {
+    const instance = new Redis(process.env["REDIS_URL"] ?? "redis://localhost:6379", {
+      maxRetriesPerRequest: 0,
+      retryStrategy: () => null,
+      lazyConnect: true,
+      connectTimeout: 3000,
+    });
 
-  redis.on("error", (err) => logger.error("Redis error:", err));
-  redis.on("connect", () => logger.info("✅ Redis connected"));
+    instance.on("error", () => {});
+    instance.on("connect", () => logger.info("✅ Redis connected"));
 
-  await redis.connect();
+    await instance.connect();
+    redis = instance;
+  } catch {
+    logger.warn("⚠️  Redis not available — running without cache");
+    redis = null;
+  }
 }
 
-export function getRedis(): Redis {
-  if (!redis) throw new Error("Redis not initialized. Call connectRedis() first.");
+export function getRedis(): Redis | null {
   return redis;
 }
 
 export async function setCache<T>(key: string, value: T, ttlSeconds = 300): Promise<void> {
-  await getRedis().setex(key, ttlSeconds, JSON.stringify(value));
+  if (!redis) return;
+  await redis.setex(key, ttlSeconds, JSON.stringify(value));
 }
 
 export async function getCache<T>(key: string): Promise<T | null> {
-  const val = await getRedis().get(key);
+  if (!redis) return null;
+  const val = await redis.get(key);
   return val ? (JSON.parse(val) as T) : null;
 }
 
 export async function deleteCache(key: string): Promise<void> {
-  await getRedis().del(key);
+  if (!redis) return;
+  await redis.del(key);
 }
 
 export async function deleteCachePattern(pattern: string): Promise<void> {
-  const keys = await getRedis().keys(pattern);
-  if (keys.length > 0) await getRedis().del(...keys);
+  if (!redis) return;
+  const keys = await redis.keys(pattern);
+  if (keys.length > 0) await redis.del(...keys);
 }

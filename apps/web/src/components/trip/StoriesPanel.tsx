@@ -7,10 +7,9 @@ import {
   BookOpen, Plus, Eye, Share2, Loader2, X, Check, Globe
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { format } from "date-fns";
 
 const StoriesPanel = observer(({ tripId }: { tripId: string }) => {
-  const { auth } = useStore();
+  const { auth, settings } = useStore();
   const [stories, setStories] = useState<TripStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -166,6 +165,7 @@ const StoriesPanel = observer(({ tripId }: { tripId: string }) => {
               story={story}
               onPublish={() => handlePublish(story)}
               onShare={() => handleCopyShareLink(story)}
+              formatDate={settings.formatDate.bind(settings)}
             />
           ))}
         </div>
@@ -175,11 +175,12 @@ const StoriesPanel = observer(({ tripId }: { tripId: string }) => {
 });
 
 function StoryCard({
-  story, onPublish, onShare
+  story, onPublish, onShare, formatDate
 }: {
   story: TripStory;
   onPublish: () => void;
   onShare: () => void;
+  formatDate: (date: Date | string) => string;
 }) {
   const isPublished = !!story.publishedAt;
 
@@ -203,7 +204,7 @@ function StoryCard({
             <p className="text-xs text-gray-400 mt-0.5 truncate">{story.summary}</p>
           )}
           <p className="text-xs text-gray-400 mt-1">
-            {format(new Date(story.createdAt), "MMM d, yyyy")}
+            {formatDate(story.createdAt)}
             {story.photos.length > 0 && ` · ${story.photos.length} photos`}
           </p>
         </div>

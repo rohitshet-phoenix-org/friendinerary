@@ -7,6 +7,7 @@ import { BudgetStore } from "./BudgetStore";
 import { ExploreStore } from "./ExploreStore";
 import { AIStore } from "./AIStore";
 import { CollaborationStore } from "./CollaborationStore";
+import { SettingsStore } from "./SettingsStore";
 
 export class RootStore {
   auth: AuthStore;
@@ -17,6 +18,7 @@ export class RootStore {
   explore: ExploreStore;
   ai: AIStore;
   collaboration: CollaborationStore;
+  settings: SettingsStore;
 
   constructor() {
     this.auth = new AuthStore(this);
@@ -27,6 +29,7 @@ export class RootStore {
     this.explore = new ExploreStore(this);
     this.ai = new AIStore(this);
     this.collaboration = new CollaborationStore(this);
+    this.settings = new SettingsStore(this);
   }
 }
 

@@ -7,7 +7,11 @@ import type { AuthRequest } from "../middleware/auth";
 import type { User } from "@friendinerary/db";
 
 const router = Router();
-const stripe = new Stripe(process.env["STRIPE_SECRET_KEY"] ?? "", { apiVersion: "2024-04-10" });
+function getStripe() {
+  const key = process.env["STRIPE_SECRET_KEY"];
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key, { apiVersion: "2024-04-10" });
+}
 
 // GET /api/subscriptions/plans
 router.get("/plans", (_req, res) => {
@@ -76,7 +80,7 @@ router.post("/checkout", requireAuth, async (req, res, next) => {
     let customerId = sub?.stripeCustomerId;
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email: user.email,
         name: user.displayName,
         metadata: { userId: user.id },
@@ -84,7 +88,7 @@ router.post("/checkout", requireAuth, async (req, res, next) => {
       customerId = customer.id;
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
@@ -107,7 +111,7 @@ router.get("/portal", requireAuth, async (req, res, next) => {
     const sub = await prisma.subscription.findUnique({ where: { userId: user.id } });
     if (!sub) return sendError(res, "No active subscription found", 404);
 
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripe().billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
       return_url: `${process.env["WEB_URL"]}/settings`,
     });

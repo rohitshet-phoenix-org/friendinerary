@@ -4,7 +4,11 @@ import { prisma } from "@friendinerary/db";
 import { logger } from "../utils/logger";
 
 const router = Router();
-const stripe = new Stripe(process.env["STRIPE_SECRET_KEY"] ?? "", { apiVersion: "2024-04-10" });
+function getStripe() {
+  const key = process.env["STRIPE_SECRET_KEY"];
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key, { apiVersion: "2024-04-10" });
+}
 
 // POST /api/webhooks/stripe
 router.post("/stripe", async (req, res) => {
@@ -13,7 +17,7 @@ router.post("/stripe", async (req, res) => {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       req.body as Buffer,
       sig,
       process.env["STRIPE_WEBHOOK_SECRET"] ?? ""
@@ -30,7 +34,7 @@ router.post("/stripe", async (req, res) => {
         const userId = session.metadata?.userId;
         if (!userId || !session.subscription) break;
 
-        const stripeSubscription = await stripe.subscriptions.retrieve(
+        const stripeSubscription = await getStripe().subscriptions.retrieve(
           session.subscription as string
         );
 

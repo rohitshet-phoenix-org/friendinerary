@@ -8,7 +8,11 @@ import type { User } from "@friendinerary/db";
 import OpenAI from "openai";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
+function getOpenAI() {
+  const key = process.env["OPENAI_API_KEY"];
+  if (!key) throw new Error("OPENAI_API_KEY is not configured");
+  return new OpenAI({ apiKey: key });
+}
 
 // GET /api/trips/:tripId/assistant/threads
 router.get("/:tripId/assistant/threads", requireAuth, requireTripAccess("view"), async (req, res, next) => {
@@ -94,7 +98,7 @@ router.post("/:tripId/assistant/chat", requireAuth, requireTripAccess("view"), a
     }));
     history.push({ role: "user", content });
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: process.env["OPENAI_MODEL"] ?? "gpt-4o",
       messages: [
         {
@@ -174,7 +178,7 @@ router.post("/:tripId/assistant/generate-itinerary", requireAuth, requireTripAcc
       return sendError(res, "destination and durationDays are required", 400);
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: process.env["OPENAI_MODEL"] ?? "gpt-4o",
       messages: [
         {

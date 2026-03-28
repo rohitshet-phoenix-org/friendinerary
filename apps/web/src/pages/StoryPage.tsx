@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { MapPin, Calendar, ChevronLeft, Camera } from "lucide-react";
-import { format } from "date-fns";
 import type { TripStory } from "@friendinerary/types";
 
 export default function StoryPage() {
@@ -62,7 +61,7 @@ export default function StoryPage() {
               {story.createdAt && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
-                  {format(new Date(story.createdAt), "MMMM d, yyyy")}
+                  {new Date(story.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                 </span>
               )}
             </div>

@@ -63,11 +63,21 @@ export class AIStore {
     });
 
     try {
+      const travelPrefs = this.root.settings.travelPrefs;
       const { data } = await api.post<{
         data: { threadId: string; message: ChatMessage; suggestedPlaces: object[] };
       }>(`/trips/${tripId}/assistant/chat`, {
         content,
         threadId: this.currentThreadId,
+        userPreferences: {
+          travelStyle: travelPrefs.travelStyle,
+          dietaryRestrictions: travelPrefs.dietaryRestrictions,
+          activityPreferences: travelPrefs.activityPreferences,
+          accessibilityNeeds: travelPrefs.accessibilityNeeds,
+          accommodationTypes: travelPrefs.accommodationTypes,
+          currency: this.root.settings.currency,
+          distanceUnit: this.root.settings.distanceUnit,
+        },
       });
 
       runInAction(() => {

@@ -18,15 +18,15 @@ const TripTabs = observer(() => {
   const { ui } = useStore();
 
   return (
-    <div className="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex-shrink-0 px-4 overflow-x-auto scrollbar-none">
+    <div className="flex border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0 px-5 overflow-x-auto scrollbar-none gap-1">
       {TABS.map((tab) => (
         <button
           key={tab.id}
           onClick={() => ui.setActiveTab(tab.id)}
-          className={`flex-shrink-0 flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+          className={`flex-shrink-0 flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all -mb-px rounded-t-lg ${
             ui.activeTab === tab.id
-              ? "border-brand-500 text-brand-600 dark:text-brand-400"
-              : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+              ? "border-brand-500 text-brand-600 dark:text-brand-400 bg-orange-50/50 dark:bg-brand-900/10"
+              : "border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50"
           }`}
         >
           {tab.icon}
