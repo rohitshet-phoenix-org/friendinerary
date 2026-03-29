@@ -134,6 +134,9 @@ model User {
   email                     String           @unique
   passwordHash              String?
   displayName               String
+  username                  String?          @unique
+  usernameChangedAt         DateTime?
+  usernameChangeCount       Int              @default(0)
   profilePhoto              String?
   authProvider              AuthProvider     @default(email)
   googleId                  String?          @unique
@@ -154,6 +157,7 @@ model User {
   updatedAt                 DateTime         @updatedAt
 
   // Relations
+  usernameHistory   UsernameHistory[]
   ownedTrips        Trip[]           @relation("TripOwner")
   collaborations    TripCollaborator[]
   expenses          Expense[]        @relation("ExpensePayer")
@@ -162,6 +166,7 @@ model User {
   votes             PlaceVote[]
   stories           TripStory[]
   visitedPlaces     VisitedPlace[]
+  traveledPlaces    TraveledPlace[]
   following         UserFollow[]     @relation("Follower")
   followers         UserFollow[]     @relation("Following")
   subscription      Subscription?
@@ -183,6 +188,35 @@ model UserFollow {
 
   @@unique([followerId, followingId])
   @@map("user_follows")
+}
+
+model UsernameHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  username    String
+  releasedAt  DateTime @default(now())
+  lockedUntil DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([username])
+  @@map("username_history")
+}
+
+model TraveledPlace {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  country   String?
+  lat       Float
+  lng       Float
+  visitedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@map("traveled_places")
 }
 
 model RefreshToken {

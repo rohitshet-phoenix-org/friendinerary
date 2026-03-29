@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../stores/RootStore";
@@ -9,7 +9,7 @@ import {
   User, CreditCard, Settings, Crown, Bell, Shield, Globe2, Plane,
   Link2, Download, Eye, EyeOff, MapPin, Ruler, Thermometer, Clock,
   Calendar, Map, Car, Lock, Trash2, Languages, Monitor, Mail,
-  Utensils, Mountain, Building, Users, ChevronRight,
+  Utensils, Mountain, Building, Users, ChevronRight, Camera, Check, X,
 } from "lucide-react";
 import type {
   DistanceUnit, TemperatureUnit, DateFormatType, TimeFormatType,
@@ -43,26 +43,170 @@ const SettingsPage = observer(() => {
   const { auth, settings } = useStore();
   const [searchParams] = useSearchParams();
   const sectionParam = searchParams.get("section");
+  const highlightParam = searchParams.get("highlight");
   const initialSection: SettingsSection =
     sectionParam === "security" ? "privacy" :
     SECTIONS.some((s) => s.id === sectionParam) ? sectionParam as SettingsSection : "profile";
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
+
+  // Sync activeSection when URL search params change (e.g. navigating from profile dropdown while already on settings)
+  useEffect(() => {
+    const resolved: SettingsSection =
+      sectionParam === "security" ? "privacy" :
+      SECTIONS.some((s) => s.id === sectionParam) ? sectionParam as SettingsSection : activeSection;
+    if (resolved !== activeSection) {
+      setActiveSection(resolved);
+    }
+  }, [sectionParam]);
+
+  // Auto-scroll to highlighted element (e.g. ?section=preferences&highlight=language)
+  useEffect(() => {
+    if (highlightParam) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`setting-${highlightParam}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-brand-500", "rounded-xl", "bg-orange-50/50", "dark:bg-brand-900/10");
+          setTimeout(() => el.classList.remove("ring-2", "ring-brand-500", "rounded-xl", "bg-orange-50/50", "dark:bg-brand-900/10"), 3000);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightParam, activeSection]);
   const [displayName, setDisplayName] = useState(auth.user?.displayName ?? "");
+  const [username, setUsername] = useState(auth.user?.username ?? "");
+  const [usernameStatus, setUsernameStatus] = useState<{ available: boolean; reason: string } | null>(null);
+  const [usernameChecking, setUsernameChecking] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const usernameTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // Username validation regex
+  const usernameRegex = /^[a-z0-9._]{5,14}$/;
+  const usernameFormatRegex = /^[a-z0-9._]*$/;
+
+  // Use a ref to always have latest username for comparison (avoids stale closure)
+  const currentUsernameRef = useRef(auth.user?.username ?? "");
+  useEffect(() => {
+    currentUsernameRef.current = auth.user?.username ?? "";
+  }, [auth.user?.username]);
+
+  // Debounced username availability check
+  const checkUsername = useCallback((value: string) => {
+    if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
+    const lower = value.toLowerCase();
+
+    if (!lower || lower === currentUsernameRef.current) {
+      setUsernameStatus(null);
+      setUsernameChecking(false);
+      return;
+    }
+
+    if (!usernameFormatRegex.test(lower)) {
+      setUsernameStatus({ available: false, reason: "Only lowercase letters, numbers, periods (.) and underscores (_) allowed" });
+      setUsernameChecking(false);
+      return;
+    }
+    if (lower.length < 5) {
+      setUsernameStatus({ available: false, reason: `${5 - lower.length} more character${5 - lower.length > 1 ? "s" : ""} needed (min 5)` });
+      setUsernameChecking(false);
+      return;
+    }
+    if (lower.length > 14) {
+      setUsernameStatus({ available: false, reason: "Maximum 14 characters" });
+      setUsernameChecking(false);
+      return;
+    }
+
+    setUsernameChecking(true);
+    usernameTimerRef.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get<{ data: { available: boolean; reason: string } }>(`/users/check-username/${lower}`);
+        setUsernameStatus(data.data);
+      } catch {
+        setUsernameStatus({ available: false, reason: "Failed to check availability" });
+      } finally {
+        setUsernameChecking(false);
+      }
+    }, 400);
+  }, []);
+
+  const handleUsernameChange = (value: string) => {
+    const lower = value.toLowerCase().replace(/[^a-z0-9._]/g, "");
+    setUsername(lower);
+    checkUsername(lower);
+  };
+
+  // Avatar upload
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only JPEG, PNG, WebP, and GIF images are supported");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB. Please choose a smaller file.");
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { data } = await api.post<{ data: { photoUrl: string } }>("/uploads/avatar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      await auth.updateProfile({ profilePhoto: data.data.photoUrl });
+      toast.success("Profile photo updated");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      const msg = error.response?.data?.error ?? "Failed to upload photo. Accepted formats: JPEG, PNG, WebP, GIF (max 5MB).";
+      toast.error(msg);
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    try {
+      await api.delete("/users/me/profile-photo");
+      await auth.fetchMe();
+      toast.success("Profile photo removed");
+    } catch {
+      toast.error("Failed to remove photo");
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      // Save display name
       await auth.updateProfile({ displayName });
+
+      // Save username if changed and valid
+      if (username && username !== (auth.user?.username ?? "") && usernameStatus?.available) {
+        await api.put("/users/me/username", { username });
+        await auth.fetchMe();
+        // Update ref so subsequent checks know the new username
+        currentUsernameRef.current = username;
+        setUsernameStatus(null);
+      }
+
       toast.success("Profile updated");
-    } catch {
-      toast.error("Failed to update profile");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error(error.response?.data?.error ?? "Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -167,16 +311,50 @@ const SettingsPage = observer(() => {
             {activeSection === "profile" && (
               <SettingsCard title="Profile" subtitle="Your public profile information" icon={<User className="w-5 h-5 text-blue-500" />} color="bg-blue-50 dark:bg-blue-900/20">
                 <form onSubmit={handleSaveProfile} className="space-y-5">
-                  {/* Avatar */}
-                  <div className="flex items-center gap-4">
-                    {auth.user?.profilePhoto ? (
-                      <img src={auth.user.profilePhoto} alt="" className="w-16 h-16 rounded-2xl object-cover ring-2 ring-gray-100" />
-                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-amber-500 flex items-center justify-center text-white text-2xl font-bold">
-                        {auth.user?.displayName?.[0]?.toUpperCase()}
-                      </div>
+                  {/* Avatar — circular with camera overlay */}
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="relative group">
+                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                      {auth.user?.profilePhoto ? (
+                        <img src={auth.user.profilePhoto} alt="" className="w-28 h-28 rounded-full object-cover ring-4 ring-gray-100 dark:ring-gray-700" />
+                      ) : (
+                        <div className="w-28 h-28 rounded-full bg-gradient-to-br from-brand-500 to-amber-500 flex items-center justify-center text-white text-4xl font-bold ring-4 ring-gray-100 dark:ring-gray-700">
+                          {auth.user?.displayName?.[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      {/* Camera overlay on hover */}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingPhoto}
+                        className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <Camera className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                      {/* Pencil badge at bottom */}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingPhoto}
+                        className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        {uploadingPhoto ? (
+                          <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Camera className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
+                        )}
+                      </button>
+                    </div>
+                    {auth.user?.profilePhoto && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="text-xs text-red-400 hover:text-red-500 transition-colors"
+                      >
+                        Remove photo
+                      </button>
                     )}
-                    <div>
+                    <div className="text-center">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">{auth.user?.displayName}</p>
                       <p className="text-xs text-gray-400">{auth.user?.email}</p>
                     </div>
@@ -184,6 +362,35 @@ const SettingsPage = observer(() => {
 
                   <FieldGroup label="Display name">
                     <SettingsInput value={displayName} onChange={setDisplayName} placeholder="Your name" />
+                  </FieldGroup>
+
+                  <FieldGroup label="Username">
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+                      <input
+                        type="text"
+                        className="w-full pl-8 pr-10 py-2.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all bg-white dark:bg-gray-900"
+                        value={username}
+                        onChange={(e) => handleUsernameChange(e.target.value)}
+                        placeholder="your_username"
+                        maxLength={14}
+                      />
+                      {usernameChecking && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                      )}
+                      {!usernameChecking && usernameStatus && (
+                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 ${usernameStatus.available ? "text-green-500" : "text-red-500"}`}>
+                          {usernameStatus.available ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                        </span>
+                      )}
+                    </div>
+                    {usernameStatus && (
+                      <p className={`text-xs mt-1.5 flex items-center gap-1 ${usernameStatus.available ? "text-green-500" : "text-red-500"}`}>
+                        {usernameStatus.available ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                        {usernameStatus.reason}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">5-14 characters. Lowercase letters, numbers, periods, underscores only. You can change it twice within 14 days.</p>
                   </FieldGroup>
 
                   <FieldGroup label="Email">
@@ -303,7 +510,7 @@ const SettingsPage = observer(() => {
                     />
                   </SettingsRow>
 
-                  <SettingsRow label="Language" icon={<Languages className="w-4 h-4" />}>
+                  <SettingsRow label="Language" icon={<Languages className="w-4 h-4" />} id="setting-language">
                     <SelectInput
                       value={settings.language}
                       onChange={(v) => settings.setLanguage(v)}
@@ -687,9 +894,9 @@ function SaveButton({ saving }: { saving: boolean }) {
   );
 }
 
-function SettingsRow({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
+function SettingsRow({ label, icon, children, id }: { label: string; icon: React.ReactNode; children: React.ReactNode; id?: string }) {
   return (
-    <div className="flex items-center justify-between py-2">
+    <div id={id} className="flex items-center justify-between py-2 px-2 -mx-2 transition-all duration-500">
       <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
         <span className="text-gray-400">{icon}</span>
         {label}

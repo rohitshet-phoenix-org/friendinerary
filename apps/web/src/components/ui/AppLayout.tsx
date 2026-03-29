@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../stores/RootStore";
-import { MapPin, Globe, Compass, Map, Settings, LogOut, Moon, Sun, Crown, User, KeyRound, ChevronUp } from "lucide-react";
+import { MapPin, Globe, Compass, Map, Settings, LogOut, Moon, Sun, Crown, User, Hotel, Languages, History, ChevronUp } from "lucide-react";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -95,7 +95,7 @@ function NavItem({ to, icon, label }: { to: string; icon: ReactNode; label: stri
   );
 }
 
-function ProfileMenu({ user, onLogout }: { user: { displayName: string; email: string; profilePhoto: string | null } | null; onLogout: () => void }) {
+function ProfileMenu({ user, onLogout }: { user: { id?: string; displayName: string; email: string; profilePhoto: string | null } | null; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -108,39 +108,36 @@ function ProfileMenu({ user, onLogout }: { user: { displayName: string; email: s
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
+  const menuItems = [
+    { icon: <User className="w-4 h-4 text-gray-400" />, label: "Your profile", action: () => navigate(`/profile/${user?.id ?? "me"}`) },
+    { icon: <Hotel className="w-4 h-4 text-gray-400" />, label: "Manage hotels", action: () => navigate("/dashboard") },
+    { icon: <Settings className="w-4 h-4 text-gray-400" />, label: "Settings", action: () => navigate("/settings") },
+    { icon: <Languages className="w-4 h-4 text-gray-400" />, label: "Language", action: () => navigate("/settings?section=preferences&highlight=language") },
+    { icon: <History className="w-4 h-4 text-gray-400" />, label: "History", action: () => navigate("/dashboard") },
+  ];
+
   return (
     <div ref={ref} className="relative">
       {/* Dropdown menu — opens upward */}
       {open && (
         <div className="absolute bottom-full left-0 right-0 mb-1.5 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-fade-in">
-          <button
-            onClick={() => { navigate("/settings?section=profile"); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <User className="w-4 h-4 text-gray-400" />
-            View profile
-          </button>
-          <button
-            onClick={() => { navigate("/settings?section=profile"); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Settings className="w-4 h-4 text-gray-400" />
-            Edit profile
-          </button>
-          <button
-            onClick={() => { navigate("/settings?section=security"); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <KeyRound className="w-4 h-4 text-gray-400" />
-            Change password
-          </button>
+          {menuItems.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => { item.action(); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
           <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
           <button
             onClick={() => { onLogout(); setOpen(false); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Sign out
+            Log out
           </button>
         </div>
       )}

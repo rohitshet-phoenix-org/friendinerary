@@ -6,6 +6,9 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
+  username: string | null;
+  usernameChangedAt: string | null;
+  usernameChangeCount: number;
   profilePhoto: string | null;
   authProvider: AuthProvider;
   subscriptionTier: SubscriptionTier;
@@ -19,8 +22,21 @@ export interface User {
 }
 
 export interface UserProfile extends User {
-  trips: { id: string; name: string; coverPhotoUrl: string | null }[];
+  trips: { id: string; name: string; coverPhotoUrl: string | null; startDate: string | null; endDate: string | null; destinations: string[]; placeCount: number }[];
+  stories: { id: string; title: string; shareSlug: string; coverPhotoUrl: string | null; createdAt: string }[];
+  visitedPlaces: VisitedPlaceEntry[];
   visitedPlacesCount: number;
+  countriesCount: number;
+  isFollowing?: boolean;
+}
+
+export interface VisitedPlaceEntry {
+  id: string;
+  name: string;
+  country: string | null;
+  lat: number;
+  lng: number;
+  visitedAt: string;
 }
 
 export interface AuthTokens {

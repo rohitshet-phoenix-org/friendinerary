@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../stores/RootStore";
-import { ArrowLeft, Share2, Users, Bot, MoreHorizontal, MapPin, Calendar, Download, Navigation, User, Settings, KeyRound, LogOut } from "lucide-react";
+import { ArrowLeft, Share2, Users, Bot, MoreHorizontal, MapPin, Calendar, Download, Navigation, User, Settings, Hotel, Languages, History, LogOut } from "lucide-react";
 
 import type { Trip } from "@friendinerary/types";
 import toast from "react-hot-toast";
@@ -52,10 +52,10 @@ const TripHeader = observer(({ trip }: TripHeaderProps) => {
         </div>
       </div>
 
-      {/* Active collaborators avatars */}
-      {collaboration.activeUsers.length > 0 && (
+      {/* Active collaborators avatars (exclude current user — they have their own avatar dropdown) */}
+      {collaboration.activeUsers.filter((u) => u.userId !== auth.user?.id).length > 0 && (
         <div className="flex -space-x-2">
-          {collaboration.activeUsers.slice(0, 4).map((u) => (
+          {collaboration.activeUsers.filter((u) => u.userId !== auth.user?.id).slice(0, 4).map((u) => (
             <div
               key={u.userId}
               className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-900 bg-gradient-to-br from-brand-400 to-amber-400 flex items-center justify-center text-white text-xs font-semibold shadow-sm"
@@ -66,9 +66,9 @@ const TripHeader = observer(({ trip }: TripHeaderProps) => {
                 : u.displayName[0]?.toUpperCase()}
             </div>
           ))}
-          {collaboration.activeUsers.length > 4 && (
+          {collaboration.activeUsers.filter((u) => u.userId !== auth.user?.id).length > 4 && (
             <div className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-900 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-300 shadow-sm">
-              +{collaboration.activeUsers.length - 4}
+              +{collaboration.activeUsers.filter((u) => u.userId !== auth.user?.id).length - 4}
             </div>
           )}
         </div>
@@ -161,7 +161,7 @@ function UserAvatarDropdown({
   user,
   navigate,
 }: {
-  user: { displayName: string; email: string; profilePhoto: string | null } | null;
+  user: { id?: string; displayName: string; email: string; profilePhoto: string | null } | null;
   navigate: (path: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -181,6 +181,14 @@ function UserAvatarDropdown({
     navigate("/login");
   };
 
+  const menuItems = [
+    { icon: <User className="w-4 h-4 text-gray-400" />, label: "Your profile", action: () => navigate(`/profile/${user?.id ?? "me"}`) },
+    { icon: <Hotel className="w-4 h-4 text-gray-400" />, label: "Manage hotels", action: () => navigate("/dashboard") },
+    { icon: <Settings className="w-4 h-4 text-gray-400" />, label: "Settings", action: () => navigate("/settings") },
+    { icon: <Languages className="w-4 h-4 text-gray-400" />, label: "Language", action: () => navigate("/settings?section=preferences&highlight=language") },
+    { icon: <History className="w-4 h-4 text-gray-400" />, label: "History", action: () => navigate("/dashboard") },
+  ];
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -199,40 +207,28 @@ function UserAvatarDropdown({
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-fade-in">
-          {/* User info header */}
           <div className="px-3 py-2.5 border-b border-gray-100 dark:border-gray-700">
             <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user?.displayName}</p>
             <p className="text-xs text-gray-400 truncate">{user?.email}</p>
           </div>
 
-          <button
-            onClick={() => { navigate("/settings?section=profile"); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors mt-1"
-          >
-            <User className="w-4 h-4 text-gray-400" />
-            View profile
-          </button>
-          <button
-            onClick={() => { navigate("/settings?section=profile"); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Settings className="w-4 h-4 text-gray-400" />
-            Edit profile
-          </button>
-          <button
-            onClick={() => { navigate("/settings?section=security"); setOpen(false); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <KeyRound className="w-4 h-4 text-gray-400" />
-            Change password
-          </button>
+          {menuItems.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => { item.action(); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors first:mt-1"
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
           <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
           <button
             onClick={() => { handleLogout(); setOpen(false); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Sign out
+            Log out
           </button>
         </div>
       )}

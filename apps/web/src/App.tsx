@@ -16,6 +16,7 @@ import PinboardPage from "./pages/PinboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import JoinTripPage from "./pages/JoinTripPage";
 import StoryPage from "./pages/StoryPage";
+import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -57,6 +58,7 @@ const App = observer(() => {
       <Route path="/trip/:tripId/*" element={<PrivateRoute><TripPage /></PrivateRoute>} />
       <Route path="/explore" element={<PrivateRoute><ExplorePage /></PrivateRoute>} />
       <Route path="/pinboard" element={<PrivateRoute><PinboardPage /></PrivateRoute>} />
+      <Route path="/profile/:userId" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
       <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
 
       <Route path="*" element={<NotFoundPage />} />
